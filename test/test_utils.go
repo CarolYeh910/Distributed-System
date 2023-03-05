@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"cse224/proj5/pkg/surfstore"
+	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,13 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
+
+const SRC_PATH = "./test_files"
+const BLOCK_SIZE = 1024
+const META_FILENAME = "index.db"
 
 func IsTombHashList(hashList []string) bool {
 	return len(hashList) == 1 && hashList[0] == TOMBSTONE_HASH
@@ -33,9 +40,63 @@ func SameHashList(list1, list2 []string) bool {
 	return true
 }
 
+/* SQL statement */
+
+const getDistinctFileName string = `select distinct fileName, version from indexes;`
+
+const getTuplesByFileName string = `select hashIndex, hashValue from indexes where fileName = ? order by hashIndex;`
+
+const createTable string = `create table if not exists indexes (
+	fileName TEXT, 
+	version INT,
+	hashIndex INT,
+	hashValue TEXT
+);`
+
+const insertTuple string = `insert into indexes (fileName, version, hashIndex, hashValue) VALUES(?,?,?,?);`
+
 /* File Path Related */
 func ConcatPath(baseDir, fileDir string) string {
 	return baseDir + "/" + fileDir
+}
+
+func LoadMetaFromDB(baseDir string) (fileMetaMap map[string]*surfstore.FileMetaData, e error) {
+	metaFilePath, _ := filepath.Abs(ConcatPath(baseDir, DEFAULT_META_FILENAME))
+	fileMetaMap = make(map[string]*surfstore.FileMetaData)
+	metaFileStats, e := os.Stat(metaFilePath)
+	if e != nil || metaFileStats.IsDir() {
+		return fileMetaMap, nil
+	}
+	db, err := sql.Open("sqlite3", metaFilePath)
+	if err != nil {
+		log.Fatal("Error When Opening Meta")
+	}
+	// stmt, _ := db.Prepare(createTable)
+	// _, err = stmt.Exec()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	row_fn, _ := db.Query(getDistinctFileName)
+	var fileName string
+	var version int
+	for row_fn.Next() {
+		var blockHashList []string
+		row_fn.Scan(&fileName, &version)
+		row_hash, _ := db.Query(getTuplesByFileName, fileName)
+		for row_hash.Next() {
+			var hashIndex int
+			var hashValue string
+			row_hash.Scan(&hashIndex, &hashValue)
+			blockHashList = append(blockHashList, hashValue)
+		}
+		fileMetaMap[fileName] = &surfstore.FileMetaData{
+			Filename:      fileName,
+			Version:       int32(version),
+			BlockHashList: blockHashList,
+		}
+	}
+	return fileMetaMap, nil
 }
 
 func LoadMetaFromMetaFile(baseDir string) (fileMetaMap map[string]*surfstore.FileMetaData, e error) {
@@ -245,8 +306,8 @@ func KillSurfServers(servers []*exec.Cmd) {
 	exec.Command("pkill SurfstoreServerExec*")
 }
 
-func SyncClient(metaAddr, baseDir string, blockSize int, cfg string) error {
-	clientCmd := exec.Command("_bin/SurfstoreClientExec", "-d", "-f", cfg, baseDir, strconv.Itoa(blockSize))
+func SyncClient(metaAddr, baseDir string, blockSize int, cfgPath string) error {
+	clientCmd := exec.Command("_bin/SurfstoreClientExec", "-f", cfgPath, baseDir, strconv.Itoa(blockSize))
 	clientCmd.Stderr = os.Stderr
 	clientCmd.Stdout = os.Stdout
 

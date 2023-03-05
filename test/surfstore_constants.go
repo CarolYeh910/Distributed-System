@@ -1,10 +1,6 @@
 package SurfTest
 
-const SRC_PATH = "./test_files"
-const BLOCK_SIZE = 1024
-const META_FILENAME = "index.txt"
-
-const DEFAULT_META_FILENAME string = "index.txt"
+const DEFAULT_META_FILENAME string = "index.db"
 const DEFAULT_BLOCK_SIZE int = 4096
 
 const META_INIT_BY_FILENAME int = 0

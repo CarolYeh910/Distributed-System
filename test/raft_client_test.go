@@ -11,9 +11,10 @@ import (
 func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	t.Logf("client1 syncs with file1. client2 syncs with file1 (different content). client1 syncs again.")
 	cfgPath := "./config_files/3nodes.txt"
-	test := InitTest(cfgPath, "8080")
+	test := InitTest(cfgPath)
 	defer EndTest(test)
 	test.Clients[0].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[0].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	worker1 := InitDirectoryWorker("test0", SRC_PATH)
 	worker2 := InitDirectoryWorker("test1", SRC_PATH)
@@ -42,6 +43,8 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 		t.Fatalf("Sync failed")
 	}
 
+	test.Clients[0].SendHeartbeat(test.Context, &emptypb.Empty{})
+
 	test.Clients[0].Crash(test.Context, &emptypb.Empty{})
 	test.Clients[1].SetLeader(test.Context, &emptypb.Empty{})
 	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
@@ -52,11 +55,16 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 		t.Fatalf("Sync failed")
 	}
 
+	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
+
 	//client1 syncs
 	err = SyncClient("localhost:8080", "test0", BLOCK_SIZE, cfgPath)
 	if err != nil {
 		t.Fatalf("Sync failed")
 	}
+
+	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
+	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	workingDir, _ := os.Getwd()
 
@@ -66,14 +74,14 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 		t.Fatalf("Could not find meta file for client1")
 	}
 
-	fileMeta1, err := LoadMetaFromMetaFile(workingDir + "/test0/")
+	fileMeta1, err := LoadMetaFromDB(workingDir + "/test0/")
 	if err != nil {
 		t.Fatalf("Could not load meta file for client1")
 	}
 	if len(fileMeta1) != 1 {
 		t.Fatalf("Wrong number of entries in client1 meta file")
 	}
-	if fileMeta1[file1].Version != 1 {
+	if fileMeta1 == nil || fileMeta1[file1].Version != 1 {
 		t.Fatalf("Wrong version for file1 in client1 metadata.")
 	}
 
@@ -91,14 +99,14 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 		t.Fatalf("Could not find meta file for client2")
 	}
 
-	fileMeta2, err := LoadMetaFromMetaFile(workingDir + "/test1/")
+	fileMeta2, err := LoadMetaFromDB(workingDir + "/test1/")
 	if err != nil {
 		t.Fatalf("Could not load meta file for client2")
 	}
 	if len(fileMeta2) != 1 {
 		t.Fatalf("Wrong number of entries in client2 meta file")
 	}
-	if fileMeta1[file1].Version != 1 {
+	if fileMeta2 == nil || fileMeta2[file1].Version != 1 {
 		t.Fatalf("Wrong version for file1 in client2 metadata.")
 	}
 

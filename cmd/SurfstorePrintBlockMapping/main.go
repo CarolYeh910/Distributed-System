@@ -63,8 +63,6 @@ func main() {
 		os.Exit(EX_USAGE)
 	}
 
-	log.Println("Client syncing with ", addrs, baseDir, blockSize)
-
 	// Disable log outputs if debug flag is missing
 	if !(*debug) {
 		log.SetFlags(0)
@@ -72,5 +70,32 @@ func main() {
 	}
 
 	rpcClient := surfstore.NewSurfstoreRPCClient(addrs.RaftAddrs, baseDir, blockSize)
-	surfstore.ClientSync(rpcClient)
+	PrintBlocksOnEachServer(rpcClient)
+}
+
+func PrintBlocksOnEachServer(client surfstore.RPCClient) {
+	allAddrs := []string{}
+	err := client.GetBlockStoreAddrs(&allAddrs)
+	if err != nil {
+		log.Fatal("[Surfstore RPCClient]:", "Error During Fetching All BlockStore Addresses ", err)
+	}
+
+	result := "{"
+	for _, addr := range allAddrs {
+		// fmt.Println("Block Server: ", addr)
+		hashes := []string{}
+		if err = client.GetBlockHashes(addr, &hashes); err != nil {
+			log.Fatal("[Surfstore RPCClient]:", "Error During Fetching Blocks on Block Server ", err)
+		}
+
+		for _, hash := range hashes {
+			result += "{" + hash + "," + addr + "},"
+		}
+	}
+	if len(result) == 1 {
+		result = "{}"
+	} else {
+		result = result[:len(result)-1] + "}"
+	}
+	fmt.Println(result)
 }

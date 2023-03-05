@@ -9,17 +9,19 @@ run-blockstore:
 
 .PHONY: run-raft
 run-raft:
-	go run cmd/SurfstoreRaftServerExec/main.go -b localhost:8081 -f example_config.txt -i $(IDX)
+	go run cmd/SurfstoreRaftServerExec/main.go -f example_config.txt -i $(IDX)
 
 .PHONY: test
 test:
-	rm -rf test/_bin
+	rm -rf ./test/_bin
+	GOBIN=$(PWD)/test/_bin go get github.com/mattn/go-sqlite3
 	GOBIN=$(PWD)/test/_bin go install ./...
 	go test -v ./test/...
 
 .PHONY: specific-test
 specific-test:
-	rm -rf test/_bin
+	rm -rf ./test/_bin
+	GOBIN=$(PWD)/test/_bin go get github.com/mattn/go-sqlite3
 	GOBIN=$(PWD)/test/_bin go install ./...
 	go test -v -run $(TEST_REGEX) -count=1 ./test/...
 

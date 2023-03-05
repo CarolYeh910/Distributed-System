@@ -2,17 +2,19 @@ package surfstore
 
 import (
 	"bufio"
-	//	"google.golang.org/grpc"
+	"encoding/json"
 	"io"
 	"log"
-	//	"net"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 )
 
-func LoadRaftConfigFile(filename string) (ipList []string) {
+type RaftConfig struct {
+	RaftAddrs  []string
+	BlockAddrs []string
+}
+
+func LoadRaftConfigFile(filename string) (cfg RaftConfig) {
 	configFD, e := os.Open(filename)
 	if e != nil {
 		log.Fatal("Error Open config file:", e)
@@ -20,45 +22,30 @@ func LoadRaftConfigFile(filename string) (ipList []string) {
 	defer configFD.Close()
 
 	configReader := bufio.NewReader(configFD)
-	serverCount := 0
+	decoder := json.NewDecoder(configReader)
 
-	for index := 0; ; index++ {
-		lineContent, _, e := configReader.ReadLine()
-		if e != nil && e != io.EOF {
-			log.Fatal(SURF_CLIENT, "Error During Reading Config", e)
-		}
-
-		if e == io.EOF {
-			return
-		}
-
-		lineString := string(lineContent)
-		splitRes := strings.Split(lineString, ": ")
-		if index == 0 {
-			serverCount, _ = strconv.Atoi(splitRes[1])
-			ipList = make([]string, serverCount, serverCount)
-		} else {
-			ipList[index-1] = splitRes[1]
-		}
+	if err := decoder.Decode(&cfg); err == io.EOF {
+		return
+	} else if err != nil {
+		log.Fatal(err)
 	}
-
 	return
 }
 
-func NewRaftServer(id int64, ips []string, blockStoreAddr string) (*RaftSurfstore, error) {
-	// TODO any initialization you need to do here
+func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
+    // TODO Any initialization you need here
 
+	isLeaderMutex := sync.RWMutex{}
 	isCrashedMutex := sync.RWMutex{}
 
 	server := RaftSurfstore{
-		// TODO initialize any fields you add here
 		isLeader:       false,
+		isLeaderMutex:  &isLeaderMutex,
 		term:           0,
-		metaStore:      NewMetaStore(blockStoreAddr),
+		metaStore:      NewMetaStore(config.BlockAddrs),
 		log:            make([]*UpdateOperation, 0),
 		isCrashed:      false,
-		notCrashedCond: sync.NewCond(&isCrashedMutex),
-		isCrashedMutex: isCrashedMutex,
+		isCrashedMutex: &isCrashedMutex,
 	}
 
 	return &server, nil
@@ -66,6 +53,5 @@ func NewRaftServer(id int64, ips []string, blockStoreAddr string) (*RaftSurfstor
 
 // TODO Start up the Raft server and any services here
 func ServeRaftServer(server *RaftSurfstore) error {
-	panic("todo")
-	return nil
+    panic("todo")
 }

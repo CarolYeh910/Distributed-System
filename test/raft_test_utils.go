@@ -3,11 +3,14 @@ package SurfTest
 import (
 	context "context"
 	"cse224/proj5/pkg/surfstore"
+	"fmt"
 	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,16 +24,16 @@ type TestInfo struct {
 	Clients    []surfstore.RaftSurfstoreClient
 }
 
-func InitTest(cfgPath, blockStorePort string) TestInfo {
+func InitTest(cfgPath string) TestInfo {
 	cfg := surfstore.LoadRaftConfigFile(cfgPath)
 
 	procs := make([]*exec.Cmd, 0)
-	procs = append(procs, InitBlockStore(blockStorePort))
-	procs = append(procs, InitRaftServers(cfgPath)...)
+	procs = append(procs, InitBlockStores(cfg.BlockAddrs)...)
+	procs = append(procs, InitRaftServers(cfgPath, cfg)...)
 
 	conns := make([]*grpc.ClientConn, 0)
 	clients := make([]surfstore.RaftSurfstoreClient, 0)
-	for _, addr := range cfg {
+	for _, addr := range cfg.RaftAddrs {
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			log.Fatal("Error connecting to clients ", err)
@@ -45,7 +48,7 @@ func InitTest(cfgPath, blockStorePort string) TestInfo {
 
 	return TestInfo{
 		CfgPath:    cfgPath,
-		Ips:        cfg,
+		Ips:        cfg.RaftAddrs,
 		Context:    ctx,
 		CancelFunc: cancel,
 		Procs:      procs,
@@ -57,36 +60,42 @@ func InitTest(cfgPath, blockStorePort string) TestInfo {
 func EndTest(test TestInfo) {
 	test.CancelFunc()
 
-	for _, conn := range test.Conns {
-		conn.Close()
-	}
-
 	for _, server := range test.Procs {
 		_ = server.Process.Kill()
 	}
 
 	exec.Command("pkill SurfstoreRaftServerExec*")
 
+	for _, conn := range test.Conns {
+		conn.Close()
+	}
+
+	// saw that sometime a test would fail right away saying "connection already in use"
 	time.Sleep(100 * time.Millisecond)
 }
 
-func InitBlockStore(blockStorePort string) *exec.Cmd {
-	blockCmd := exec.Command("_bin/SurfstoreServerExec", "-s", "block", "-p", blockStorePort, "-l")
-	blockCmd.Stderr = os.Stderr
-	blockCmd.Stdout = os.Stdout
-	err := blockCmd.Start()
-	if err != nil {
-		log.Fatal("Error starting BlockStore ", err)
+func InitBlockStores(blockStoreAddrs []string) []*exec.Cmd {
+	blockCmdList := make([]*exec.Cmd, 0)
+	for _, addr := range blockStoreAddrs {
+		port := strings.Split(addr, ":")[1]
+		blockCmd := exec.Command("_bin/SurfstoreServerExec", "-d", "-s", "block", "-p", port, "-l")
+		blockCmd.Stderr = os.Stderr
+		blockCmd.Stdout = os.Stdout
+		err := blockCmd.Start()
+		if err != nil {
+			log.Fatal("Error starting BlockStore ", err)
+		}
+		blockCmdList = append(blockCmdList, blockCmd)
 	}
 
-	return blockCmd
+	return blockCmdList
 }
 
-func InitRaftServers(cfgPath string) []*exec.Cmd {
-	cfg := surfstore.LoadRaftConfigFile(cfgPath)
+func InitRaftServers(cfgPath string, cfg surfstore.RaftConfig) []*exec.Cmd {
 	cmdList := make([]*exec.Cmd, 0)
-	for idx, _ := range cfg {
-		cmd := exec.Command("_bin/SurfstoreRaftServerExec", "-f", cfgPath, "-i", strconv.Itoa(idx), "-b", "localhost:8080")
+	for idx, _ := range cfg.RaftAddrs {
+
+		cmd := exec.Command("_bin/SurfstoreRaftServerExec", "-f", cfgPath, "-i", strconv.Itoa(idx))
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 		cmdList = append(cmdList, cmd)
@@ -102,6 +111,30 @@ func InitRaftServers(cfgPath string) []*exec.Cmd {
 	time.Sleep(2 * time.Second)
 
 	return cmdList
+}
+
+func CheckInternalState(isLeader *bool, term *int64, log []*surfstore.UpdateOperation, fileMetaMap map[string]*surfstore.FileMetaData, server surfstore.RaftSurfstoreClient, ctx context.Context) (bool, error) {
+	state, err := server.GetInternalState(ctx, &emptypb.Empty{})
+	if err != nil {
+		return false, fmt.Errorf("could not get internal state: %w", err)
+	}
+	if state == nil {
+		return false, fmt.Errorf("state is nil")
+	}
+	if isLeader != nil && *isLeader != state.IsLeader {
+		return false, fmt.Errorf("expected leader state %t, got %t", *isLeader, state.IsLeader)
+	}
+	if term != nil && *term != state.Term {
+		return false, fmt.Errorf("expected term %d, got %d", *term, state.Term)
+	}
+	if log != nil && !SameLog(log, state.Log) {
+		return false, fmt.Errorf("incorrect log")
+	}
+	if fileMetaMap != nil && !SameMeta(fileMetaMap, state.MetaMap.FileInfoMap) {
+		return false, fmt.Errorf("incorrect MetaStore state")
+	}
+
+	return true, nil
 }
 
 func SameOperation(op1, op2 *surfstore.UpdateOperation) bool {

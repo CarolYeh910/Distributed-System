@@ -3,7 +3,8 @@ module cse224/proj5
 go 1.17
 
 require (
-	google.golang.org/grpc v1.44.0
+    github.com/mattn/go-sqlite3 v1.14.16
+    google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 )
 

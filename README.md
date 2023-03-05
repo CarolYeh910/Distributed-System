@@ -38,6 +38,7 @@ cp /path/to/proj5/starter-code/pkg/surfstore/SurfStore.proto pkg/surfstore/
 6. Copy over new client exec program and make changes to the client
 ```console
 cp /path/to/proj5/starter-code/cmd/SurfstoreClientExec/main.go cmd/SurfstoreClientExec/
+cp /path/to/proj5/starter-code/cmd/SurfstorePrintBlockMapping/main.go cmd/SurfstorePrintBlockMapping/
 ```
 
 The client will need to take a slice of strings instead of a single address. In `pkg/surfstore/SurfstoreRPCClient.go` change the client struct to:

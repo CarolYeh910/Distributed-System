@@ -70,9 +70,34 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 }
 
 func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
-	empty := &emptypb.Empty{}
-	succ, err := s.SendHeartbeat(ctx, empty)
-	return err == nil && succ.Flag
+	responses := make(chan bool, len(s.peers)-1)
+	for idx, addr := range s.peers {
+		if int64(idx) == s.id {
+			continue
+		}
+		go s.sendToFollower(ctx, addr, responses)
+	}
+
+	totalResponses := 1
+	totalAppends := 1
+	commit := false
+
+	// wait in loop for responses
+	for {
+		result := <-responses
+		totalResponses++
+		if result {
+			totalAppends++
+			if totalAppends > len(s.peers)/2 {
+				commit = true
+				break
+			}
+		}
+		if totalResponses == len(s.peers) {
+			break
+		}
+	}
+	return commit
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {

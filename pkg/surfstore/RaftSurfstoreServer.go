@@ -2,7 +2,6 @@ package surfstore
 
 import (
 	context "context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -102,17 +101,11 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
-	fmt.Printf("%d", s.id)
 	if s.isCrashed {
-		fmt.Printf(" crashed\n")
 		return &Version{}, ERR_SERVER_CRASHED
 	}
-	fmt.Printf("\n")
 	if !s.isLeader {
 		return &Version{}, ERR_NOT_LEADER
-	}
-	if !s.FindMajority(ctx) {
-		return &Version{}, ERR_SERVER_CRASHED
 	}
 
 	// append entry to our log
@@ -241,7 +234,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		if s.log[input.PrevLogIndex].Term != input.PrevLogTerm {
 			s.log = s.log[:input.PrevLogIndex]
 		}
-	} else {
+	} else if len(s.log) > 0 {
 		s.log = make([]*UpdateOperation, 0)
 	}
 

@@ -32,11 +32,11 @@ type RaftSurfstore struct {
 
 func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty) (*FileInfoMap, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED
+		return &FileInfoMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
-			return nil, ERR_SERVER_CRASHED
+			return &FileInfoMap{}, ERR_SERVER_CRASHED
 		}
 		return s.metaStore.GetFileInfoMap(ctx, empty)
 	}
@@ -45,11 +45,11 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 
 func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashes) (*BlockStoreMap, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED
+		return &BlockStoreMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
-			return nil, ERR_SERVER_CRASHED
+			return &BlockStoreMap{}, ERR_SERVER_CRASHED
 		}
 		return s.metaStore.GetBlockStoreMap(ctx, hashes)
 	}
@@ -58,11 +58,11 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 
 func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.Empty) (*BlockStoreAddrs, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED
+		return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
-			return nil, ERR_SERVER_CRASHED
+			return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
 		}
 		return s.metaStore.GetBlockStoreAddrs(ctx, empty)
 	}
@@ -77,13 +77,13 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED
+		return &Version{}, ERR_SERVER_CRASHED
 	}
 	if !s.isLeader {
 		return &Version{}, ERR_NOT_LEADER
 	}
 	if !s.FindMajority(ctx) {
-		return nil, ERR_SERVER_CRASHED
+		return &Version{}, ERR_SERVER_CRASHED
 	}
 
 	// append entry to our log

@@ -157,7 +157,11 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 
 	output, err := client.AppendEntries(ctx, &dummyAppendEntriesInput)
 	// TODO check output
-	responses <- output.Success
+	if err == nil {
+		responses <- output.Success
+	} else {
+		responses <- false
+	}
 }
 
 // 1. Reply false if term < currentTerm (§5.1)

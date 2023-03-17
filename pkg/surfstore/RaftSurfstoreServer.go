@@ -131,7 +131,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
 
-	return nil, nil
+	return &Version{}, ERR_SERVER_CRASHED
 }
 
 func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context, idx int) {

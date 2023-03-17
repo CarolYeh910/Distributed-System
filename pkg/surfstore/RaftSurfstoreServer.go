@@ -2,7 +2,7 @@ package surfstore
 
 import (
 	context "context"
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
@@ -102,11 +102,12 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
-	log.Printf("%d", s.id)
+	fmt.Printf("%d", s.id)
 	if s.isCrashed {
-		log.Printf(" crashed")
+		fmt.Printf(" crashed\n")
 		return &Version{}, ERR_SERVER_CRASHED
 	}
+	fmt.Printf("\n")
 	if !s.isLeader {
 		return &Version{}, ERR_NOT_LEADER
 	}
@@ -240,7 +241,10 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		if s.log[input.PrevLogIndex].Term != input.PrevLogTerm {
 			s.log = s.log[:input.PrevLogIndex]
 		}
+	} else {
+		s.log = make([]*UpdateOperation, 0)
 	}
+
 	for i := len(s.log); i < len(input.Entries); i++ {
 		s.log = append(s.log, input.Entries[i])
 	}

@@ -99,88 +99,96 @@ func (surfClient *RPCClient) GetBlockHashes(blockStoreAddr string, blockHashes *
 }
 
 func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileMetaData) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddr[0], grpc.WithInsecure())
-	if err != nil {
-		return err
+	for _, addr := range surfClient.MetaStoreAddr {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		empty := &emptypb.Empty{}
+		InfoMap, err := c.GetFileInfoMap(ctx, empty)
+		if err != nil {
+			conn.Close()
+			continue
+		}
+		*serverFileInfoMap = InfoMap.FileInfoMap
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	empty := &emptypb.Empty{}
-	InfoMap, err := c.GetFileInfoMap(ctx, empty)
-	if err != nil {
-		conn.Close()
-		return err
-	}
-	*serverFileInfoMap = InfoMap.FileInfoMap
-
-	return conn.Close()
+	return ERR_SERVER_CRASHED
 }
 
 func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersion *int32) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddr[0], grpc.WithInsecure())
-	if err != nil {
-		return err
+	for _, addr := range surfClient.MetaStoreAddr {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		ver, err := c.UpdateFile(ctx, fileMetaData)
+		if err != nil {
+			conn.Close()
+			continue
+		}
+		*latestVersion = ver.Version
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	ver, err := c.UpdateFile(ctx, fileMetaData)
-	if err != nil {
-		conn.Close()
-		return err
-	}
-	*latestVersion = ver.Version
-
-	return conn.Close()
+	return ERR_SERVER_CRASHED
 }
 
 func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStoreMap *map[string][]string) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddr[0], grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	c := NewRaftSurfstoreClient(conn)
+	for _, addr := range surfClient.MetaStoreAddr {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
-	hashes := &BlockHashes{Hashes: blockHashesIn}
-	bsMap, err := c.GetBlockStoreMap(ctx, hashes)
-	if err != nil {
-		conn.Close()
-		return err
+		hashes := &BlockHashes{Hashes: blockHashesIn}
+		bsMap, err := c.GetBlockStoreMap(ctx, hashes)
+		if err != nil {
+			conn.Close()
+			continue
+		}
+		for addr, data := range bsMap.BlockStoreMap {
+			(*blockStoreMap)[addr] = data.Hashes
+		}
+		return conn.Close()
 	}
-	for addr, data := range bsMap.BlockStoreMap {
-		(*blockStoreMap)[addr] = data.Hashes
-	}
-
-	return conn.Close()
+	return ERR_SERVER_CRASHED
 }
 
 func (surfClient *RPCClient) GetBlockStoreAddrs(blockStoreAddrs *[]string) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddr[0], grpc.WithInsecure())
-	if err != nil {
-		return err
+	for _, addr := range surfClient.MetaStoreAddr {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		empty := &emptypb.Empty{}
+		addrs, err := c.GetBlockStoreAddrs(ctx, empty)
+		if err != nil {
+			conn.Close()
+			continue
+		}
+		*blockStoreAddrs = addrs.BlockStoreAddrs
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	empty := &emptypb.Empty{}
-	addrs, err := c.GetBlockStoreAddrs(ctx, empty)
-	if err != nil {
-		conn.Close()
-		return err
-	}
-	*blockStoreAddrs = addrs.BlockStoreAddrs
-
-	return conn.Close()
+	return ERR_SERVER_CRASHED
 }
 
 // This line guarantees all method for RPCClient are implemented

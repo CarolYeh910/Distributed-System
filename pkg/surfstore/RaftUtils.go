@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"os"
 	"sync"
+
+	grpc "google.golang.org/grpc"
 )
 
 type RaftConfig struct {
@@ -33,7 +36,7 @@ func LoadRaftConfigFile(filename string) (cfg RaftConfig) {
 }
 
 func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
-    // TODO Any initialization you need here
+	// TODO Any initialization you need here
 
 	isLeaderMutex := sync.RWMutex{}
 	isCrashedMutex := sync.RWMutex{}
@@ -46,6 +49,12 @@ func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
 		log:            make([]*UpdateOperation, 0),
 		isCrashed:      false,
 		isCrashedMutex: &isCrashedMutex,
+
+		id:             id,
+		peers:          config.RaftAddrs,
+		pendingCommits: make([]*chan bool, 0),
+		commitIndex:    -1,
+		lastApplied:    -1,
 	}
 
 	return &server, nil
@@ -53,5 +62,13 @@ func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
 
 // TODO Start up the Raft server and any services here
 func ServeRaftServer(server *RaftSurfstore) error {
-    panic("todo")
+	grpcServer := grpc.NewServer()
+	RegisterRaftSurfstoreServer(grpcServer, server)
+
+	l, e := net.Listen("tcp", server.peers[server.id])
+	if e != nil {
+		return e
+	}
+
+	return grpcServer.Serve(l)
 }

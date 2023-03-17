@@ -2,6 +2,7 @@ package surfstore
 
 import (
 	context "context"
+	"log"
 	"sync"
 	"time"
 
@@ -101,7 +102,9 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
+	log.Printf("%d", s.id)
 	if s.isCrashed {
+		log.Printf(" crashed")
 		return &Version{}, ERR_SERVER_CRASHED
 	}
 	if !s.isLeader {

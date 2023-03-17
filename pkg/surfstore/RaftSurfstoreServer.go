@@ -3,6 +3,7 @@ package surfstore
 import (
 	context "context"
 	"sync"
+	"time"
 
 	grpc "google.golang.org/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -30,6 +31,9 @@ type RaftSurfstore struct {
 }
 
 func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty) (*FileInfoMap, error) {
+	if s.isCrashed {
+		return nil, ERR_SERVER_CRASHED
+	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
 			return nil, ERR_SERVER_CRASHED
@@ -40,6 +44,9 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 }
 
 func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashes) (*BlockStoreMap, error) {
+	if s.isCrashed {
+		return nil, ERR_SERVER_CRASHED
+	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
 			return nil, ERR_SERVER_CRASHED
@@ -50,6 +57,9 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 }
 
 func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.Empty) (*BlockStoreAddrs, error) {
+	if s.isCrashed {
+		return nil, ERR_SERVER_CRASHED
+	}
 	if s.isLeader {
 		if !s.FindMajority(ctx) {
 			return nil, ERR_SERVER_CRASHED
@@ -66,6 +76,9 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
+	if s.isCrashed {
+		return nil, ERR_SERVER_CRASHED
+	}
 	if !s.isLeader {
 		return &Version{}, ERR_NOT_LEADER
 	}
@@ -178,8 +191,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		Term:     s.term,
 		Success:  false,
 	}
-	if s.isCrashed {
-		return output, ERR_SERVER_CRASHED
+	for s.isCrashed {
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	if input.Term > s.term {

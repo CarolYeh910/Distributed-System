@@ -186,6 +186,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 
 	// TODO check all errors
+	//for s.isLeader && !s.isCrashed {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return
@@ -202,6 +203,14 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	} else {
 		responses <- false
 	}
+	// if err == nil && output.Success {
+	// 	responses <- true
+	// 	return
+	// } else {
+	// 	time.Sleep(10 * time.Millisecond)
+	// }
+	// }
+	// responses <- false
 }
 
 // 1. Reply false if term < currentTerm (§5.1)
@@ -219,7 +228,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		Success:  false,
 	}
 	for s.isCrashed {
-		time.Sleep(time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
+		// return output, nil
 	}
 
 	if input.Term > s.term {

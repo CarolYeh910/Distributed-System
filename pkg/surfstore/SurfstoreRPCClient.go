@@ -140,7 +140,7 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 		*latestVersion = ver.Version
 		return conn.Close()
 	}
-	return ERR_SERVER_CRASHED
+	return nil
 }
 
 func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStoreMap *map[string][]string) error {

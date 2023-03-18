@@ -35,9 +35,9 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 		return &FileInfoMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		if !s.FindMajority(ctx) {
-			return &FileInfoMap{}, ERR_SERVER_CRASHED
-		}
+		// if !s.FindMajority(ctx) {
+		// 	return &FileInfoMap{}, ERR_SERVER_CRASHED
+		// }
 		return s.metaStore.GetFileInfoMap(ctx, empty)
 	}
 	return &FileInfoMap{}, ERR_NOT_LEADER
@@ -48,9 +48,9 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 		return &BlockStoreMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		if !s.FindMajority(ctx) {
-			return &BlockStoreMap{}, ERR_SERVER_CRASHED
-		}
+		// if !s.FindMajority(ctx) {
+		// 	return &BlockStoreMap{}, ERR_SERVER_CRASHED
+		// }
 		return s.metaStore.GetBlockStoreMap(ctx, hashes)
 	}
 	return &BlockStoreMap{}, ERR_NOT_LEADER
@@ -61,9 +61,9 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 		return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		if !s.FindMajority(ctx) {
-			return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
-		}
+		// if !s.FindMajority(ctx) {
+		// 	return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
+		// }
 		return s.metaStore.GetBlockStoreAddrs(ctx, empty)
 	}
 	return &BlockStoreAddrs{}, ERR_NOT_LEADER
@@ -214,7 +214,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		Success:  false,
 	}
 	for s.isCrashed {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(time.Millisecond)
 	}
 
 	if input.Term > s.term {

@@ -2,6 +2,7 @@ package surfstore
 
 import (
 	context "context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,9 +36,9 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 		return &FileInfoMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		// if !s.FindMajority(ctx) {
-		// 	return &FileInfoMap{}, ERR_SERVER_CRASHED
-		// }
+		if !s.FindMajority(ctx) {
+			return &FileInfoMap{}, ERR_SERVER_CRASHED
+		}
 		return s.metaStore.GetFileInfoMap(ctx, empty)
 	}
 	return &FileInfoMap{}, ERR_NOT_LEADER
@@ -48,9 +49,9 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 		return &BlockStoreMap{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		// if !s.FindMajority(ctx) {
-		// 	return &BlockStoreMap{}, ERR_SERVER_CRASHED
-		// }
+		if !s.FindMajority(ctx) {
+			return &BlockStoreMap{}, ERR_SERVER_CRASHED
+		}
 		return s.metaStore.GetBlockStoreMap(ctx, hashes)
 	}
 	return &BlockStoreMap{}, ERR_NOT_LEADER
@@ -61,9 +62,9 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 		return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
 	}
 	if s.isLeader {
-		// if !s.FindMajority(ctx) {
-		// 	return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
-		// }
+		if !s.FindMajority(ctx) {
+			return &BlockStoreAddrs{}, ERR_SERVER_CRASHED
+		}
 		return s.metaStore.GetBlockStoreAddrs(ctx, empty)
 	}
 	return &BlockStoreAddrs{}, ERR_NOT_LEADER
@@ -101,6 +102,7 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
+	fmt.Printf("%d UpdateFile", s.id)
 	if s.isCrashed {
 		return &Version{}, ERR_SERVER_CRASHED
 	}
@@ -270,6 +272,7 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 }
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
+	fmt.Printf("%d SendHeartbeat", s.id)
 	dummyAppendEntriesInput := AppendEntryInput{
 		Term: s.term,
 		// TODO put the right values
@@ -281,7 +284,6 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 	if s.lastApplied > 0 {
 		dummyAppendEntriesInput.PrevLogTerm = s.log[s.lastApplied].Term
 	}
-	valid := 1
 
 	// contact all the follower, send some AppendEntries call
 	for idx, addr := range s.peers {
@@ -296,13 +298,10 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		}
 		client := NewRaftSurfstoreClient(conn)
 
-		_, err = client.AppendEntries(ctx, &dummyAppendEntriesInput)
-		if err == nil {
-			valid++
-		}
+		client.AppendEntries(ctx, &dummyAppendEntriesInput)
 	}
 
-	return &Success{Flag: valid > len(s.peers)/2}, nil
+	return &Success{Flag: true}, nil
 }
 
 // ========== DO NOT MODIFY BELOW THIS LINE =====================================

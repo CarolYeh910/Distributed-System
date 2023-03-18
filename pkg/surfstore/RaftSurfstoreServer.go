@@ -102,7 +102,7 @@ func (s *RaftSurfstore) FindMajority(ctx context.Context) bool {
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
-	fmt.Printf("%d UpdateFile", s.id)
+	fmt.Printf("%d UpdateFile\n", s.id)
 	if s.isCrashed {
 		return &Version{}, ERR_SERVER_CRASHED
 	}
@@ -192,7 +192,10 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 	client := NewRaftSurfstoreClient(conn)
 
-	output, err := client.AppendEntries(ctx, &dummyAppendEntriesInput)
+	contx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	output, err := client.AppendEntries(contx, &dummyAppendEntriesInput)
 	// TODO check output
 	if err == nil {
 		responses <- output.Success
@@ -272,7 +275,7 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 }
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
-	fmt.Printf("%d SendHeartbeat", s.id)
+	fmt.Printf("%d SendHeartbeat\n", s.id)
 	dummyAppendEntriesInput := AppendEntryInput{
 		Term: s.term,
 		// TODO put the right values
@@ -298,7 +301,10 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		}
 		client := NewRaftSurfstoreClient(conn)
 
-		client.AppendEntries(ctx, &dummyAppendEntriesInput)
+		contx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		client.AppendEntries(contx, &dummyAppendEntriesInput)
 	}
 
 	return &Success{Flag: true}, nil
@@ -307,6 +313,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 // ========== DO NOT MODIFY BELOW THIS LINE =====================================
 
 func (s *RaftSurfstore) Crash(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
+	fmt.Printf("%d Crash\n", s.id)
 	s.isCrashedMutex.Lock()
 	s.isCrashed = true
 	s.isCrashedMutex.Unlock()
@@ -315,6 +322,7 @@ func (s *RaftSurfstore) Crash(ctx context.Context, _ *emptypb.Empty) (*Success, 
 }
 
 func (s *RaftSurfstore) Restore(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
+	fmt.Printf("%d Restore\n", s.id)
 	s.isCrashedMutex.Lock()
 	s.isCrashed = false
 	s.isCrashedMutex.Unlock()

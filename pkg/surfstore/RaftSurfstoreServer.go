@@ -131,7 +131,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
 
-	return &Version{}, ERR_SERVER_CRASHED
+	return nil, nil
 }
 
 func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context, idx int) {
@@ -219,9 +219,9 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 	if input.Term > s.term {
 		s.isLeaderMutex.Lock()
-		defer s.isLeaderMutex.Unlock()
 		s.isLeader = false
 		s.term = input.Term
+		s.isLeaderMutex.Unlock()
 	} else if input.Term < s.term {
 		return output, nil
 	}

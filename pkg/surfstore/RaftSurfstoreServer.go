@@ -186,31 +186,32 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 
 	// TODO check all errors
-	//for s.isLeader && !s.isCrashed {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	if err != nil {
-		return
-	}
-	client := NewRaftSurfstoreClient(conn)
+	for s.isLeader && !s.isCrashed {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return
+		}
+		client := NewRaftSurfstoreClient(conn)
 
-	contx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+		contx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
-	output, err := client.AppendEntries(contx, &dummyAppendEntriesInput)
-	// TODO check output
-	if err == nil {
-		responses <- output.Success
-	} else {
-		responses <- false
+		output, err := client.AppendEntries(contx, &dummyAppendEntriesInput)
+		// TODO check output
+		// if err == nil {
+		// 	responses <- output.Success
+		// } else {
+		// 	responses <- false
+		// }
+		if err == nil && output.Success {
+			responses <- true
+			return
+		} else {
+			responses <- false
+			time.Sleep(time.Second)
+		}
 	}
-	// if err == nil && output.Success {
-	// 	responses <- true
-	// 	return
-	// } else {
-	// 	time.Sleep(10 * time.Millisecond)
-	// }
-	// }
-	// responses <- false
+	responses <- false
 }
 
 // 1. Reply false if term < currentTerm (§5.1)
@@ -227,9 +228,9 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		Term:     s.term,
 		Success:  false,
 	}
-	for s.isCrashed {
-		time.Sleep(10 * time.Millisecond)
-		// return output, nil
+	if s.isCrashed {
+		// time.Sleep(10 * time.Millisecond)
+		return output, nil
 	}
 
 	if input.Term > s.term {

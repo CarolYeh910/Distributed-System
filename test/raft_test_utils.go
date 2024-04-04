@@ -129,6 +129,7 @@ func CheckInternalState(isLeader *bool, term *int64, log []*surfstore.UpdateOper
 		return false, fmt.Errorf("expected term %d, got %d", *term, state.Term)
 	}
 	if log != nil && !SameLog(log, state.Log) {
+		fmt.Println(len(state.Log))
 		return false, fmt.Errorf("incorrect log")
 	}
 	if fileMetaMap != nil && !SameMeta(fileMetaMap, state.MetaMap.FileInfoMap) {

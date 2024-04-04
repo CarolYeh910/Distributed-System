@@ -129,6 +129,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 
 	// once committed, apply to the state machine
 	if commit {
+		fmt.Printf("%d commit\n", s.id)
 		s.lastApplied++
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
@@ -168,7 +169,8 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context, idx in
 
 	*s.pendingCommits[idx] <- commit
 	if commit {
-		s.commitIndex = int64(idx)
+		fmt.Printf("%d %d\n", s.id, idx)
+		s.commitIndex = int64(len(s.log) - 1)
 	}
 }
 
@@ -208,7 +210,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 			return
 		} else {
 			responses <- false
-			time.Sleep(time.Second)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 	responses <- false
@@ -259,6 +261,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	}
 
 	for s.lastApplied < input.LeaderCommit {
+		fmt.Printf("%d commit\n", s.id)
 		entry := s.log[s.lastApplied+1]
 		s.metaStore.UpdateFile(ctx, entry.FileMetaData)
 		s.lastApplied++

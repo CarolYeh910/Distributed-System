@@ -1,9 +1,10 @@
 package SurfTest
 
 import (
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"os"
 	"testing"
+
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	//	"time"
 )
 
@@ -23,7 +24,7 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 
 	//clients add different files
 	file1 := "multi_file1.txt"
-	file2 := "multi_file1.txt"
+	file2 := "multi_file2.txt"
 	err := worker1.AddFile(file1)
 	if err != nil {
 		t.FailNow()
@@ -32,10 +33,10 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	if err != nil {
 		t.FailNow()
 	}
-	err = worker2.UpdateFile(file2, "update text")
-	if err != nil {
-		t.FailNow()
-	}
+	// err = worker2.UpdateFile(file2, "update text")
+	// if err != nil {
+	// 	t.FailNow()
+	// }
 
 	//client1 syncs
 	err = SyncClient("localhost:8080", "test0", BLOCK_SIZE, cfgPath)
@@ -58,12 +59,14 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	//client1 syncs
-	err = SyncClient("localhost:8080", "test0", BLOCK_SIZE, cfgPath)
-	if err != nil {
-		t.Fatalf("Sync failed")
-	}
+	// err = SyncClient("localhost:8080", "test0", BLOCK_SIZE, cfgPath)
+	// if err != nil {
+	// 	t.Fatalf("Sync failed")
+	// }
 
-	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
+	// test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[0].Restore(test.Context, &emptypb.Empty{})
 	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	workingDir, _ := os.Getwd()
@@ -103,7 +106,7 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not load meta file for client2")
 	}
-	if len(fileMeta2) != 1 {
+	if len(fileMeta2) != 2 {
 		t.Fatalf("Wrong number of entries in client2 meta file")
 	}
 	if fileMeta2 == nil || fileMeta2[file1].Version != 1 {

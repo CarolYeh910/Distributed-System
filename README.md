@@ -40,6 +40,19 @@ pic.jpg index.txt
 ```
 We observe that pic.jpg has been synced to this client.
 
+
+# Makefile
+
+Run BlockStore server:
+```console
+$ make run-blockstore
+```
+
+Run RaftSurfstore server:
+```console
+$ make IDX=0 run-raft
+```
+
 Test:
 ```console
 $ make test
